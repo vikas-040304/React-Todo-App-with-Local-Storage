@@ -3,199 +3,234 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>React Todo App</title>
+    <title>React Todo - Portfolio Project</title>
     
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
+    <script src="https://cdn.tailwindcss.com"></script>
+    
     <style>
-        /* CSS STYLES */
-        :root { --primary: #6366f1; --bg: #e0e7ff; --danger: #ef4444; --success: #22c55e; }
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: var(--bg);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
+        /* Custom Animation for Notifications */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
-        .app-container {
-            background: white;
-            width: 400px;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-        h1 { text-align: center; color: #333; margin-bottom: 1.5rem; }
-        
-        /* Input Area */
-        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
-        input {
-            flex: 1;
-            padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            font-size: 1rem;
-            outline: none;
-        }
-        input:focus { border-color: var(--primary); }
-        .add-btn {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1.1rem;
-        }
-        .add-btn:hover { opacity: 0.9; }
-
-        /* Todo List */
-        ul { list-style: none; padding: 0; margin: 0; }
-        .todo-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #f9fafb;
-            padding: 10px;
-            margin-bottom: 8px;
-            border-radius: 6px;
-            border-left: 4px solid transparent;
-            transition: all 0.2s;
-        }
-        .todo-item.completed {
-            border-left-color: var(--success);
-            background: #f0fdf4;
-        }
-        .todo-item.completed span {
-            text-decoration: line-through;
-            color: #888;
-        }
-        
-        .actions { display: flex; gap: 8px; }
-        button.icon-btn {
-            border: none;
-            background: none;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: transform 0.2s;
-        }
-        button.icon-btn:hover { transform: scale(1.2); }
-        .check-btn { color: var(--success); }
-        .edit-btn { color: var(--primary); }
-        .delete-btn { color: var(--danger); }
-        
-        .empty-msg { text-align: center; color: #aaa; margin-top: 20px; }
+        .toast { animation: slideIn 0.3s ease-out forwards; }
     </style>
 </head>
-<body>
+<body class="bg-gray-100 font-sans">
 
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        function App() {
-            // 1. STATE: Initialize tasks from Local Storage if available
-            const [todos, setTodos] = useState(() => {
-                const savedTodos = localStorage.getItem('react-todos');
-                return savedTodos ? JSON.parse(savedTodos) : [];
-            });
-            const [inputValue, setInputValue] = useState('');
-
-            // 2. EFFECT: Save to Local Storage whenever 'todos' changes
+        // --- COMPONENT: NOTIFICATION (TOAST) ---
+        function Notification({ msg, type, onClose }) {
             useEffect(() => {
-                localStorage.setItem('react-todos', JSON.stringify(todos));
-            }, [todos]);
+                const timer = setTimeout(onClose, 3000);
+                return () => clearTimeout(timer);
+            }, []);
 
-            // 3. CRUD: CREATE
-            const addTodo = (e) => {
+            const color = type === 'error' ? 'bg-red-500' : 'bg-green-500';
+
+            return (
+                <div className={`toast fixed top-5 right-5 ${color} text-white px-6 py-3 rounded shadow-lg z-50 flex items-center`}>
+                    <span>{msg}</span>
+                </div>
+            );
+        }
+
+        // --- COMPONENT: AUTHENTICATION (LOGIN/SIGNUP) ---
+        function Auth({ onLogin, notify }) {
+            const [isLogin, setIsLogin] = useState(true);
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+
+            const handleSubmit = (e) => {
                 e.preventDefault();
-                if (!inputValue.trim()) return;
+                if(!email || !password) return notify('Please fill all fields', 'error');
 
-                const newTodo = {
-                    id: Date.now(),
-                    text: inputValue,
-                    completed: false
-                };
+                const users = JSON.parse(localStorage.getItem('users') || '[]');
 
-                setTodos([...todos, newTodo]);
-                setInputValue('');
-            };
-
-            // 3. CRUD: UPDATE (Toggle Complete)
-            const toggleComplete = (id) => {
-                setTodos(todos.map(todo => 
-                    todo.id === id ? { ...todo, completed: !todo.completed } : todo
-                ));
-            };
-
-            // 3. CRUD: UPDATE (Edit Text)
-            const editTodo = (id) => {
-                const todoToEdit = todos.find(t => t.id === id);
-                const newText = prompt('Edit task:', todoToEdit.text);
-                
-                if (newText !== null && newText.trim() !== '') {
-                    setTodos(todos.map(todo => 
-                        todo.id === id ? { ...todo, text: newText } : todo
-                    ));
-                }
-            };
-
-            // 3. CRUD: DELETE
-            const deleteTodo = (id) => {
-                if(confirm('Are you sure you want to delete this task?')) {
-                    setTodos(todos.filter(todo => todo.id !== id));
+                if (isLogin) {
+                    // Login Logic
+                    const user = users.find(u => u.email === email && u.password === password);
+                    if (user) {
+                        onLogin(user);
+                    } else {
+                        notify('Invalid credentials', 'error');
+                    }
+                } else {
+                    // Signup Logic
+                    if(users.find(u => u.email === email)) return notify('User already exists', 'error');
+                    
+                    const newUser = { email, password, name: email.split('@')[0] };
+                    localStorage.setItem('users', JSON.stringify([...users, newUser]));
+                    notify('Account created! Please login.', 'success');
+                    setIsLogin(true);
                 }
             };
 
             return (
-                <div class="app-container">
-                    <h1><i className="fas fa-check-double"></i> Task Master</h1>
-                    
-                    {/* Input Form */}
-                    <form onSubmit={addTodo} className="input-group">
-                        <input 
-                            type="text" 
-                            placeholder="What needs to be done?" 
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                        />
-                        <button type="submit" className="add-btn">
-                            <i className="fas fa-plus"></i>
-                        </button>
-                    </form>
+                <div className="min-h-screen flex items-center justify-center">
+                    <div className="bg-white p-8 rounded-lg shadow-md w-96">
+                        <h2 className="text-2xl font-bold mb-6 text-center text-blue-600">{isLogin ? 'Login' : 'Sign Up'}</h2>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <input type="email" placeholder="Email" className="w-full p-2 border rounded" value={email} onChange={e => setEmail(e.target.value)} />
+                            <input type="password" placeholder="Password" className="w-full p-2 border rounded" value={password} onChange={e => setPassword(e.target.value)} />
+                            <button className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">
+                                {isLogin ? 'Login' : 'Create Account'}
+                            </button>
+                        </form>
+                        <p className="mt-4 text-center text-sm text-gray-600 cursor-pointer hover:underline" onClick={() => setIsLogin(!isLogin)}>
+                            {isLogin ? "Need an account? Sign Up" : "Have an account? Login"}
+                        </p>
+                    </div>
+                </div>
+            );
+        }
 
-                    {/* Task List */}
-                    <ul>
-                        {todos.length === 0 ? (
-                            <li className="empty-msg">No tasks yet. Add one above!</li>
-                        ) : (
-                            todos.map(todo => (
-                                <li key={todo.id} className={`todo-item ${todo.completed ? 'completed' : ''}`}>
-                                    <span onClick={() => toggleComplete(todo.id)} style={{cursor: 'pointer', flex: 1}}>
-                                        {todo.text}
-                                    </span>
-                                    <div className="actions">
-                                        <button onClick={() => toggleComplete(todo.id)} className="icon-btn check-btn" title="Complete">
-                                            <i className={`fas ${todo.completed ? 'fa-undo' : 'fa-check'}`}></i>
-                                        </button>
-                                        <button onClick={() => editTodo(todo.id)} className="icon-btn edit-btn" title="Edit">
-                                            <i className="fas fa-pen"></i>
-                                        </button>
-                                        <button onClick={() => deleteTodo(todo.id)} className="icon-btn delete-btn" title="Delete">
-                                            <i className="fas fa-trash"></i>
-                                        </button>
+        // --- COMPONENT: TODO LIST APP ---
+        function TodoApp({ user, onLogout, notify }) {
+            const [todos, setTodos] = useState([]);
+            const [input, setInput] = useState('');
+
+            // Load user specific todos on mount
+            useEffect(() => {
+                const savedTodos = JSON.parse(localStorage.getItem(`todos_${user.email}`) || '[]');
+                setTodos(savedTodos);
+            }, [user]);
+
+            // Save todos whenever they change
+            useEffect(() => {
+                localStorage.setItem(`todos_${user.email}`, JSON.stringify(todos));
+            }, [todos, user]);
+
+            const addTodo = (e) => {
+                e.preventDefault();
+                if (!input.trim()) return;
+                const newTodo = { id: Date.now(), text: input, completed: false };
+                setTodos([newTodo, ...todos]);
+                setInput('');
+                notify('Task Added', 'success');
+            };
+
+            const toggleTodo = (id) => {
+                setTodos(todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+            };
+
+            const deleteTodo = (id) => {
+                setTodos(todos.filter(t => t.id !== id));
+                notify('Task Deleted', 'error');
+            };
+
+            const editTodo = (id) => {
+                const todoToEdit = todos.find(t => t.id === id);
+                const newText = prompt("Update your task:", todoToEdit.text);
+                if (newText && newText.trim() !== "") {
+                    setTodos(todos.map(t => t.id === id ? { ...t, text: newText } : t));
+                    notify('Task Updated', 'success');
+                }
+            };
+
+            return (
+                <div className="min-h-screen py-10 px-4">
+                    <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-xl overflow-hidden">
+                        {/* Header */}
+                        <div className="bg-blue-600 p-6 flex justify-between items-center text-white">
+                            <div>
+                                <h1 className="text-2xl font-bold">Welcome, {user.name}</h1>
+                                <p className="text-blue-100 text-sm">{todos.filter(t => !t.completed).length} pending tasks</p>
+                            </div>
+                            <button onClick={onLogout} className="bg-blue-800 px-4 py-2 rounded text-sm hover:bg-blue-900">Logout</button>
+                        </div>
+
+                        {/* Input Area */}
+                        <form onSubmit={addTodo} className="p-6 border-b flex gap-2">
+                            <input 
+                                type="text" 
+                                className="flex-1 p-3 border rounded focus:outline-none focus:border-blue-500"
+                                placeholder="What needs to be done?"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                            />
+                            <button className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 font-bold">+</button>
+                        </form>
+
+                        {/* List Area */}
+                        <ul className="divide-y max-h-[60vh] overflow-y-auto">
+                            {todos.length === 0 && <li className="p-6 text-center text-gray-500">No tasks yet. Add one above!</li>}
+                            
+                            {todos.map(todo => (
+                                <li key={todo.id} className={`p-4 flex items-center justify-between hover:bg-gray-50 transition ${todo.completed ? 'bg-gray-50' : ''}`}>
+                                    <div className="flex items-center gap-3 flex-1">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={todo.completed} 
+                                            onChange={() => toggleTodo(todo.id)}
+                                            className="w-5 h-5 cursor-pointer accent-blue-600"
+                                        />
+                                        <span className={`text-lg ${todo.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                                            {todo.text}
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => editTodo(todo.id)} className="text-yellow-600 hover:text-yellow-800 px-2">✎</button>
+                                        <button onClick={() => deleteTodo(todo.id)} className="text-red-500 hover:text-red-700 px-2">🗑</button>
                                     </div>
                                 </li>
-                            ))
-                        )}
-                    </ul>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- MAIN APP COMPONENT ---
+        function App() {
+            const [user, setUser] = useState(null);
+            const [notification, setNotification] = useState(null);
+
+            useEffect(() => {
+                const savedUser = JSON.parse(localStorage.getItem('currentUser'));
+                if (savedUser) setUser(savedUser);
+            }, []);
+
+            const handleLogin = (userData) => {
+                setUser(userData);
+                localStorage.setItem('currentUser', JSON.stringify(userData));
+                triggerNotification(`Welcome back, ${userData.name}!`, 'success');
+            };
+
+            const handleLogout = () => {
+                setUser(null);
+                localStorage.removeItem('currentUser');
+                triggerNotification('Logged out successfully', 'success');
+            };
+
+            const triggerNotification = (msg, type) => {
+                setNotification({ msg, type });
+            };
+
+            return (
+                <div>
+                    {notification && (
+                        <Notification 
+                            msg={notification.msg} 
+                            type={notification.type} 
+                            onClose={() => setNotification(null)} 
+                        />
+                    )}
+                    
+                    {user ? (
+                        <TodoApp user={user} onLogout={handleLogout} notify={triggerNotification} />
+                    ) : (
+                        <Auth onLogin={handleLogin} notify={triggerNotification} />
+                    )}
                 </div>
             );
         }
@@ -203,6 +238,5 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
-
 </body>
 </html>
